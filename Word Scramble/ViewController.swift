@@ -12,16 +12,33 @@ class ViewController: UITableViewController {
     var allWords = [String]()
     var usedWords = [String]()
     
+    var randomWord:String?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(onAddPressed))
         navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(onRefreshPressed))
         populateAllWords()
-        startGame()
+        title = getSavedWord() ?? getNewRandomWord()
+        getSavedUsedWordsList()
     }
     
-    @objc func onRefreshPressed(){ startGame() }
+    private func getNewRandomWord()->String? {
+        let randomElement = allWords.randomElement()
+        if let randomElement {
+            let defaults = UserDefaults.standard
+            defaults.set(randomElement, forKey: "randomSavedWord")
+        }
+        return randomElement
+    }
+    
+    func getSavedWord()->String? {
+        let defaults = UserDefaults.standard
+        return defaults.string(forKey: "randomSavedWord")
+    }
+    
+    @objc func onRefreshPressed(){ restartGame() }
     
     @objc func onAddPressed(){
         let ac = UIAlertController(title: "Add a word", message: nil, preferredStyle: .alert)
@@ -45,15 +62,26 @@ class ViewController: UITableViewController {
                 print(allWords.count)
             }
         }
-        if allWords.isEmpty {
-            print("Nil")
+        if allWords.isEmpty { print("Nil") }
+    }
+    
+    private func restartGame(){
+        title = getNewRandomWord()
+        usedWords.removeAll(keepingCapacity: true)
+        saveUsedWordsList()
+        tableView.reloadData()
+    }
+    
+    private func getSavedUsedWordsList() {
+        let defaults = UserDefaults.standard
+        if let usedWords = defaults.array(forKey: "usedWords") as? [String]{
+            self.usedWords = usedWords
         }
     }
     
-    private func startGame(){
-        title = allWords.randomElement()
-        usedWords.removeAll(keepingCapacity: true)
-        tableView.reloadData()
+    private func saveUsedWordsList() {
+        let defaults = UserDefaults.standard
+        defaults.set(usedWords, forKey: "usedWords")
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -75,6 +103,7 @@ class ViewController: UITableViewController {
             if isOriginal(word: lowerCasedAnswer) {
                 if isReal(word: lowerCasedAnswer) {
                     usedWords.insert(answer, at: 0)
+                    saveUsedWordsList()
                     let indexPath = IndexPath(row: 0, section: 0 )
                     tableView.insertRows(at: [indexPath], with: .fade)
                     return
@@ -108,7 +137,6 @@ class ViewController: UITableViewController {
     
     private func isOriginal(word:String) -> Bool {
         if word == title?.lowercased() {return false}
-
         return !usedWords.contains{$0.lowercased() == word.lowercased()}
     }
     
